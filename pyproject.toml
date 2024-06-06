@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Milan Boháček <244656@muni.cz>"]
 readme = "README.md"
+package-mode = false
 
 [tool.black]
 line-length = 120
@@ -26,7 +27,4 @@ aiosqlite = "^0.19.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.poetry.scripts]
-dr-emu = 'cli.main:app'
 
