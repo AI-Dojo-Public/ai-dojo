@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "dojo"
+version = "0.1.0"
+description = ""
+authors = ["Milan Boháček <244656@muni.cz>"]
+readme = "README.md"
+
+[tool.black]
+line-length = 120
+
+[tool.poetry.dependencies]
+python = "^3.11"
+cyst-core = { path = "./cyst-core" }
+black = {extras = ["d"], version = "^23.3.0"}
+uvicorn = "^0.23.0"
+fastapi = {extras = ["all"], version = "^0.104.0"}
+httpx = "^0.26.0"
+
+[tool.poetry.group.dev.dependencies]
+black = {extras = ["d"], version = "^23.3.0"}
+pytest = "^7.4.2"
+pytest-asyncio = "^0.21.1"
+pytest-mock = "^3.11.1"
+aiosqlite = "^0.19.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+dr-emu = 'cli.main:app'
+
