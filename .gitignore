@@ -1,8 +1,4 @@
 .idea
 __pycache__
 .venv
-dr_emu/log/*
-/tests/unit/.pytest_cache/
-/tests/integration/.pytest_cache/
 cyst-core
-test.db
