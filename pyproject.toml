@@ -17,6 +17,8 @@ priority = "explicit"
 [tool.poetry.dependencies]
 python = "^3.11"
 cyst-core = { version = "*", source = "dojo" }
+cyst-models-dojo-cryton = { version = "*", source = "dojo" }
+cyst-platforms-docker-cryton = { version = "*", source = "dojo" }
 uvicorn = "^0.23.0"
 fastapi = {extras = ["all"], version = "^0.104.0"}
 httpx = "^0.26.0"
