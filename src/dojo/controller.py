@@ -10,6 +10,7 @@ from enum import StrEnum, auto
 
 class EnvironmentAction(StrEnum):
     INIT = auto()
+    CONFIGURE = auto()
     TERMINATE = auto()
     RUN = auto()
     COMMIT = auto()
@@ -43,13 +44,17 @@ class EnvironmentWrapper:
     @staticmethod
     def loop(platform: PlatformSpecification, configuration: str, pipe: connection.Connection):
         environment = Environment.create(platform)
-        environment.configure(*environment.configuration.general.load_configuration(configuration))
+        # environment.configure(*environment.configuration.general.load_configuration(configuration))
 
         while True:  # TODO: env state could be used instead of manual shutdown
             action: EnvironmentAction | None = pipe.recv()
             match action:
                 case EnvironmentAction.INIT:
                     response = environment.control.init()
+                case EnvironmentAction.CONFIGURE:
+                    environment.configure(
+                        *environment.configuration.general.load_configuration(configuration))
+                    response = (True, EnvironmentState.INIT)  # TODO somehow replace this ugly hotfix
                 case EnvironmentAction.RUN:
                     response = environment.control.run()
                 case EnvironmentAction.RESET:

@@ -1,0 +1,153 @@
+services:
+  cryton-rabbit:
+    image: rabbitmq:3.12
+    container_name: cryton-rabbit
+    restart: always
+    networks:
+      - cryton_network
+    environment:
+      - RABBITMQ_DEFAULT_USER=cryton
+      - RABBITMQ_DEFAULT_PASS=cryton
+    healthcheck:
+      test: rabbitmqctl eval '
+        { true, rabbit_app_booted_and_running } = { rabbit:is_booted(node()), rabbit_app_booted_and_running },
+        { [], no_alarms } = { rabbit:alarms(), no_alarms },
+        [] /= rabbit_networking:active_listeners(),
+        rabbitmq_node_is_healthy.
+        ' || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  cryton-postgres:
+    image: postgres:16
+    container_name: cryton-postgres
+    restart: always
+    networks:
+      - cryton_network
+    volumes:
+      - cryton_db_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=cryton
+      - POSTGRES_USER=cryton
+      - POSTGRES_DB=cryton
+      - POSTGRES_HOST_AUTH_METHOD=md5
+    healthcheck:
+      test: /usr/bin/pg_isready -U $$POSTGRES_USER
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  cryton-pgbouncer:
+    image: bitnami/pgbouncer:1.22.0
+    container_name: cryton-pgbouncer
+    restart: always
+    networks:
+      - cryton_network
+    volumes:
+      - cryton_db_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRESQL_HOST=cryton-postgres
+      - POSTGRESQL_PASSWORD=cryton
+      - POSTGRESQL_USERNAME=cryton
+      - POSTGRESQL_DATABASE=cryton
+      - PGBOUNCER_DATABASE=cryton
+      - PGBOUNCER_PORT=5432
+      - PGBOUNCER_MAX_CLIENT_CONN=1000
+      - PGBOUNCER_MIN_POOL_SIZE=8
+      - PGBOUNCER_POOL_MODE=transaction
+
+  cryton-hive:
+    image: registry.gitlab.ics.muni.cz:443/cryton/cryton/hive:2
+    container_name: cryton-hive
+    restart: always
+    networks:
+      - cryton_network
+    ports:
+      - "127.0.0.1:8001:80"
+    environment:
+      - CRYTON_HIVE_RABBIT_HOST=cryton-rabbit
+      - CRYTON_HIVE_RABBIT_USERNAME=cryton
+      - CRYTON_HIVE_RABBIT_PASSWORD=cryton
+      - CRYTON_HIVE_DATABASE_HOST=cryton-pgbouncer
+      - CRYTON_HIVE_DATABASE_NAME=cryton
+      - CRYTON_HIVE_DATABASE_USERNAME=cryton
+      - CRYTON_HIVE_DATABASE_PASSWORD=cryton
+    depends_on:
+      cryton-pgbouncer:
+        condition: service_started
+      cryton-rabbit:
+        condition: service_healthy
+
+  cryton-api-proxy:
+    image: registry.gitlab.ics.muni.cz:443/cryton/cryton/api-proxy:2
+    container_name: cryton-api-proxy
+    restart: always
+    network_mode: container:cryton-hive
+    depends_on:
+      cryton-hive:
+        condition: service_started
+
+  cryton-frontend:
+    image: registry.gitlab.ics.muni.cz:443/cryton/cryton-frontend:latest
+    container_name: cryton-frontend
+    restart: always
+    networks:
+      - cryton_network
+    ports:
+      - "127.0.0.1:8080:80"
+
+  dr-emu-db:
+    image: postgres:16
+    container_name: dr-emu-db
+    restart: always
+    networks:
+      - dr_emu_network
+    volumes:
+      - dr_emu_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=dremu-password
+      - POSTGRES_USER=dremu-user
+      - POSTGRES_DB=dremudb
+    healthcheck:
+      test: /usr/bin/pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
+      interval: 20s
+      timeout: 10s
+      retries: 5
+
+  dr-emu:
+    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dr-emu/dr-emu:latest
+    container_name: dr-emu
+    restart: always
+    networks:
+      - dr_emu_network
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DEBUG=true
+      - POSTGRES_PASSWORD=dremu-password
+      - POSTGRES_USER=dremu-user
+      - POSTGRES_DB=dremudb
+      - DB_HOST=dr-emu-db
+      - APP_HOST=127.0.0.1
+      - APP_PORT=8000
+      - SSL=false
+      - REGISTRY_URL=placeholder
+      - DOCKER_USERNAME=demo
+      - DOCKER_TOKEN=token
+      - MANAGEMENT_NETWORK_NAME=cryton_network
+      - IGNORE_MANAGEMENT_NETWORK=false
+    depends_on:
+      dr-emu-db:
+        condition: service_healthy
+
+networks:
+  cryton_network:
+    name: cryton_network
+  dr_emu_network:
+
+volumes:
+  cryton_db_data:
+  dr_emu_data:

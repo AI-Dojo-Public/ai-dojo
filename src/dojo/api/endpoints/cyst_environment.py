@@ -52,6 +52,15 @@ async def init(name):
 
 
 @router.post(
+    "/configure/",
+    status_code=status.HTTP_200_OK,
+    responses={200: {"description": "Environment configured"}},
+)
+async def configure(name: str):
+    await get_environment_wrapper(name).perform_action(EnvironmentAction.CONFIGURE)
+
+
+@router.post(
     "/reset/",
     status_code=status.HTTP_200_OK,
     responses={200: {"description": "Environment retested"}},
@@ -77,6 +86,15 @@ async def terminate(name):
 async def close(name):
     await get_environment_wrapper(name).perform_action(None)
     environments.pop(name)
+
+
+@router.post(
+    "/commit/",
+    status_code=status.HTTP_200_OK,
+    responses={200: {"description": "Environment commited"}},
+)
+async def commit(name):
+    await get_environment_wrapper(name).perform_action(EnvironmentAction.COMMIT)
 
 
 @router.post(
