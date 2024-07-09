@@ -60,6 +60,7 @@ services:
   cryton-hive:
     image: registry.gitlab.ics.muni.cz:443/cryton/cryton/hive:2
     container_name: cryton-hive
+    hostname: cryton-hive
     restart: always
     networks:
       - cryton_network
@@ -118,11 +119,12 @@ services:
   dr-emu:
     image: registry.gitlab.ics.muni.cz:443/ai-dojo/dr-emu/dr-emu:latest
     container_name: dr-emu
+    hostname: dr-emu
     restart: always
     networks:
       - dr_emu_network
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8005:8000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
@@ -142,6 +144,22 @@ services:
     depends_on:
       dr-emu-db:
         condition: service_healthy
+
+  dojo:
+    restart: always
+    container_name: dojo
+    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dojo
+    networks:
+      - dr_emu_network
+      - cryton_network
+    environment:
+      - DEBUG=true
+      - CYST_PLATFORM_DR_EMU_IP=dr-emu
+      - CYST_PLATFORM_CRYTON_PORT=80
+      - CYST_PLATFORM_CRYTON_IP=cryton-hive
+    ports:
+      - "127.0.0.1:8000:8000"
+
 
 networks:
   cryton_network:

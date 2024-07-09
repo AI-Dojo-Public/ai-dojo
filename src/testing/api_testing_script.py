@@ -14,7 +14,7 @@ async def create(name: str, platform: dict):
 
     print(f"Creating Environment: {name}")
     async with httpx.AsyncClient() as client:
-        response = await client.post("http://127.0.0.1:8005/api/v1/environment/create/", json=data)
+        response = await client.post("http://127.0.0.1:8000/api/v1/environment/create/", json=data)
     if response.status_code != 201:
         raise RuntimeError(f"message: {response.text}, code: {response.status_code}")
     else:
@@ -26,7 +26,7 @@ async def configure(name: str):
 
     print(f"Configuring environment: {name}")
     async with httpx.AsyncClient() as client:
-        response = await client.post("http://127.0.0.1:8005/api/v1/environment/configure/", params=data, timeout=100000)
+        response = await client.post("http://127.0.0.1:8000/api/v1/environment/configure/", params=data, timeout=100000)
     if response.status_code != 200:
         raise RuntimeError(f"message: {response.text}, code: {response.status_code}")
     else:
@@ -38,7 +38,7 @@ async def init(name: str):
 
     print(f"Initializing environment: {name}")
     async with httpx.AsyncClient() as client:
-        response = await client.post("http://127.0.0.1:8005/api/v1/environment/init/", params=data)
+        response = await client.post("http://127.0.0.1:8000/api/v1/environment/init/", params=data)
     if response.status_code != 200:
         raise RuntimeError(f"message: {response.text}, code: {response.status_code}")
     else:
@@ -50,7 +50,7 @@ async def run(name: str):
 
     print(f"Starting environment: {name}")
     async with httpx.AsyncClient() as client:
-        response = await client.post("http://127.0.0.1:8005/api/v1/environment/run/", params=data)
+        response = await client.post("http://127.0.0.1:8000/api/v1/environment/run/", params=data)
     if response.status_code != 200:
         raise RuntimeError(f"message: {response.text}, code: {response.status_code}")
     else:
@@ -60,7 +60,7 @@ async def run(name: str):
 async def list_envs():
     print("Listing environments")
     async with httpx.AsyncClient() as client:
-        response = await client.get("http://127.0.0.1:8005/api/v1/environment/list/")
+        response = await client.get("http://127.0.0.1:8000/api/v1/environment/list/")
     if response.status_code != 200:
         raise RuntimeError(f"message: {response.text}, code: {response.status_code}")
     else:
@@ -73,7 +73,7 @@ async def terminate(env: str):
 
     print(f"Terminating environment: {env}")
     async with httpx.AsyncClient() as client:
-        response = await client.post("http://127.0.0.1:8005/api/v1/environment/terminate/", params=data)
+        response = await client.post("http://127.0.0.1:8000/api/v1/environment/terminate/", params=data)
     if response.status_code != 200:
         raise RuntimeError(f"message: {response.text}, code: {response.status_code}")
     else:
@@ -85,7 +85,7 @@ async def close(env: str):
 
     print(f"Closing environment: {env}")
     async with httpx.AsyncClient() as client:
-        response = await client.post("http://127.0.0.1:8005/api/v1/environment/close/", params=data)
+        response = await client.post("http://127.0.0.1:8000/api/v1/environment/close/", params=data)
     if response.status_code != 200:
         raise RuntimeError(f"message: {response.text}, code: {response.status_code}")
     else:
@@ -96,7 +96,7 @@ async def create_envs():
     async with asyncio.TaskGroup() as tg:
         # tg.create_task(create("env1", {"type": 1, "provider": "CYST"}))
         tg.create_task(create("emu-env", {"type": 2, "provider": "docker+cryton"}))
-        tg.create_task(create("emu-env2", {"type": 2, "provider": "docker+cryton"}))
+        # tg.create_task(create("emu-env2", {"type": 2, "provider": "docker+cryton"}))
 
 
 async def start_env(env: str):
