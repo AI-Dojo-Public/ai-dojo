@@ -148,7 +148,7 @@ services:
   dojo:
     restart: always
     container_name: dojo
-    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dojo
+    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dojo/dojo
     networks:
       - dr_emu_network
       - cryton_network
