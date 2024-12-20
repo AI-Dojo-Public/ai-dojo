@@ -115,9 +115,10 @@ class EnvironmentWrapper:
                         response = ActionResponse(id, environment.control.state.name, e[0], "The environment was successfully initialized" if e[0] else "Failed to initialize the environment.")
                     case EnvironmentAction.CONFIGURE:
                         try:
-                            environment.configure(*environment.configuration.general.load_configuration(configuration))
+                            environment.configure(*environment.configuration.general.load_configuration(param))
                             response = ActionResponse(id, environment.control.state.name, True, "The environment was successfully configured.")
-                        except:
+                        except Exception as e:
+                            print(e)
                             response = ActionResponse(id, EnvironmentState.TERMINATED.name, False, "Failed to configure the environment.")
                     case EnvironmentAction.RUN:
                         # To make our life easier, we do a manual check if the thread is in init or paused state

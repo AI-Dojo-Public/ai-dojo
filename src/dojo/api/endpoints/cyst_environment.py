@@ -6,6 +6,7 @@ from pathlib import Path
 
 from dataclasses import asdict
 from dojo.schemas.environment import Environment
+from dojo.schemas.configuration import Configuration
 from dojo.controller import environments, EnvironmentWrapper, EnvironmentAction, ActionResponse, EnvironmentState
 
 
@@ -75,8 +76,17 @@ async def init(id) -> ActionResponse:
     "/configure/",
     status_code=status.HTTP_200_OK,
 )
-async def configure(id: str, config: str) -> ActionResponse:
-    return await get_environment_wrapper(id).perform_action(EnvironmentAction.CONFIGURE, config)
+async def configure(id: str, cfg: Configuration) -> ActionResponse:
+    config_str = None
+    if cfg.config:
+        if len(cfg.config) < 256:
+            path = Path("src", "dojo", "configurations").joinpath(cfg.config + ".json")
+            if path.exists():
+                with open(path, "r") as f:
+                    config_str = f.read()
+        if not config_str:
+            config_str = base64.b64decode(cfg.config).decode("utf-8")
+    return await get_environment_wrapper(id).perform_action(EnvironmentAction.CONFIGURE, config_str)
 
 
 @router.post(
