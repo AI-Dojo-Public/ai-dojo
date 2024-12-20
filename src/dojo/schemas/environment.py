@@ -1,6 +1,7 @@
 import dataclasses
 import pydantic
 from pydantic import BaseModel, constr, Field
+from typing import Optional
 from cyst.api.environment.platform_specification import PlatformSpecification, PlatformType
 
 
@@ -11,7 +12,6 @@ from cyst.api.environment.platform_specification import PlatformSpecification, P
 
 class Environment(BaseModel):
     """ """
-
-    name: constr(min_length=1)
-    platform: PlatformSpecification = Field(default=PlatformSpecification(PlatformType.SIMULATION, "CYST"))
+    id: Optional[str] = None
+    platform: PlatformSpecification = Field(default=PlatformSpecification(PlatformType.SIMULATED_TIME, "CYST"))
     configuration: str
