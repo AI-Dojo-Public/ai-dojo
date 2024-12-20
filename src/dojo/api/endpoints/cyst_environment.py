@@ -30,8 +30,8 @@ def get_environment_wrapper(id: str) -> EnvironmentWrapper:
 
 platform_type_description = """
 ## Platform types
-- **1 = simulation (default)**
-- **2 = emulation**
+- **1 = Simulated time**
+- **2 = Real time**
 """
 
 
