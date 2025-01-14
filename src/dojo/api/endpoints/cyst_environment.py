@@ -3,6 +3,8 @@ from fastapi.responses import JSONResponse
 
 from dojo.schemas.environment import Environment
 from dojo.controller import environments, EnvironmentWrapper, EnvironmentAction
+from cyst.api.environment.platform_specification import PlatformSpecification
+
 
 
 router = APIRouter(
@@ -37,7 +39,7 @@ platform_type_description = """
 async def create(env: Environment):
     if env.name in environments:
         raise HTTPException(status_code=409, detail=f"Environment {env.name} already exists")
-    ew = EnvironmentWrapper(env.platform, env.name, env.configuration)
+    ew = EnvironmentWrapper(PlatformSpecification(env.platform.type, env.platform.provider), env.name, env.configuration)
     ew.start()
     environments[env.name] = ew
 
