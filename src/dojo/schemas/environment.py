@@ -1,21 +1,17 @@
 import dataclasses
-from enum import Enum
-
 import pydantic
 from pydantic import BaseModel, constr, Field
-from cyst.api.environment.platform_specification import PlatformType
+from cyst.api.environment.platform_specification import PlatformSpecification, PlatformType
 
 
-class PlatformProvider(str, Enum):
-    cyst = 'CYST'
-    docker_cryton = 'docker+cryton'
-
-class PlatformSpecification(BaseModel):
-    type: PlatformType
-    provider: PlatformProvider
+# @pydantic.dataclasses.dataclass(frozen=True)
+# class Platform(PlatformSpecification):
+#     pass
 
 
 class Environment(BaseModel):
+    """ """
+
     name: constr(min_length=1)
-    platform: PlatformSpecification
+    platform: PlatformSpecification = Field(default=PlatformSpecification(PlatformType.SIMULATION, "CYST"))
     configuration: str
