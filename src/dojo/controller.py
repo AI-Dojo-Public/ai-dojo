@@ -10,7 +10,7 @@ from dataclasses import dataclass, asdict
 from fastapi import HTTPException
 from multiprocessing import Process, Pipe, connection, Lock
 from enum import StrEnum, auto
-from typing import Any
+from typing import Any, Optional
 from threading import Thread
 from pathlib import Path
 
@@ -32,6 +32,7 @@ class ActionResponse:
     state: str
     success: bool
     message: str
+    aux: Optional[str] = None
 
 
 class EnvironmentWrapper:
@@ -91,7 +92,7 @@ class EnvironmentWrapper:
             environment = Environment.create(platform)
             if configuration:
                 environment.configure(*environment.configuration.general.load_configuration(configuration))
-            pipe.send(ActionResponse(id, EnvironmentState.CREATED.name, True, f"Environment successfully created."))
+            pipe.send(ActionResponse(id, EnvironmentState.CREATED.name, True, f"Environment successfully created.", environment.configuration.general.save_configuration(2)))
         except:
             if configuration:
                 message = "Failed to create and configure the environment."
