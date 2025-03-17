@@ -1,11 +1,20 @@
+import os
+import socket
+import uuid
+import time
+
 from cyst.api.environment.environment import Environment
 from cyst.api.environment.control import EnvironmentState
 from cyst.api.environment.platform_specification import PlatformSpecification
 
 from asyncio import to_thread
+from dataclasses import dataclass, asdict
 from fastapi import HTTPException
 from multiprocessing import Process, Pipe, connection, Lock
 from enum import StrEnum, auto
+from typing import Any, Optional, Dict
+from threading import Thread
+from pathlib import Path
 
 
 class EnvironmentAction(StrEnum):
@@ -19,59 +28,167 @@ class EnvironmentAction(StrEnum):
     GET_STATE = auto()
 
 
+@dataclass
+class ActionResponse:
+    id: str
+    state: str
+    success: bool
+    message: str
+    aux: Optional[str] = None
+
+
 class EnvironmentWrapper:
-    def __init__(self, platform: PlatformSpecification, name: str, configuration: str):
-        self.name = name
-        self.platform = platform
-        self.configuration = configuration
+    def __init__(self, platform: PlatformSpecification, id: str | None, configuration: str, parameters: Optional[Dict[str, Any]], agent_manager_port: int = 8282):
+        if not id:
+            self._id = str(uuid.uuid4())
+        else:
+            self._id = id
+
+        self._platform = platform
+
+        self._configuration = configuration
+        self._parameters = parameters
 
         self._pipe_parent, self._pipe_child = Pipe()
-        self._process = Process(target=self.loop, args=(self.platform, self.configuration, self._pipe_child))
+        self._process = Process(target=self.loop, args=(self._id, self._platform, self._configuration, self._parameters, self._pipe_child))
         self._lock = Lock()
+        self.agent_manager_port: int = agent_manager_port
 
-    async def perform_action(self, action: EnvironmentAction | None):
+    @property
+    def id(self) -> str:
+        return self._id
+
+    @property
+    def platform(self) -> PlatformSpecification:
+        return self._platform
+
+    @property
+    def configuration(self) -> str:
+        return self._configuration
+
+    async def start(self) -> ActionResponse:
+        os.environ["CYST_AGENT_ENV_MANAGER_PORT"] = str(self.agent_manager_port)
         with self._lock:
-            self._pipe_parent.send(action)
-            response: tuple[bool, EnvironmentState] = await to_thread(self._pipe_parent.recv)
+            self._process.start()
+            response: ActionResponse = await to_thread(self._pipe_parent.recv)
 
-        if response and not response[0]:
-            raise HTTPException(status_code=409, detail={"state": response[1].name})
+        if response and not response.success:
+            raise HTTPException(status_code=409, detail=asdict(response))
         return response
 
-    def start(self):
-        self._process.start()
+    async def perform_action(self, action: EnvironmentAction | None, param: Any = None) -> ActionResponse:
+        if not self._process.is_alive():
+            del environments[self._id]
+            return ActionResponse(self._id, EnvironmentState.TERMINATED.name, False, f"The environment is already terminated.")
 
-    @staticmethod
-    def loop(platform: PlatformSpecification, configuration: str, pipe: connection.Connection):
-        environment = Environment.create(platform)
-        # environment.configure(*environment.configuration.general.load_configuration(configuration))
+        with self._lock:
+            self._pipe_parent.send((action, param))
+            response: ActionResponse = await to_thread(self._pipe_parent.recv)
 
-        while True:  # TODO: env state could be used instead of manual shutdown
-            action: EnvironmentAction | None = pipe.recv()
-            match action:
-                case EnvironmentAction.INIT:
-                    response = environment.control.init()
-                case EnvironmentAction.CONFIGURE:
-                    environment.configure(
-                        *environment.configuration.general.load_configuration(configuration))
-                    response = (True, EnvironmentState.INIT)  # TODO somehow replace this ugly hotfix
-                case EnvironmentAction.RUN:
-                    response = environment.control.run()
-                case EnvironmentAction.RESET:
-                    response = environment.control.reset()
-                case EnvironmentAction.COMMIT:
-                    response = environment.control.commit()
-                case EnvironmentAction.PAUSE:
-                    response = environment.control.pause()
-                case EnvironmentAction.TERMINATE:
-                    response = environment.control.terminate()
-                case EnvironmentAction.GET_STATE:
-                    response = environment.control.state.name
-                case _:
-                    response = None
+        if response and not response.success:
+            raise HTTPException(status_code=409, detail=asdict(response))
+        return response
 
-            pipe.send(response)
-            if not response:
+    def loop(self, id: str, platform: PlatformSpecification, configuration: str, parameters: Optional[Dict[str, Any]], pipe: connection.Connection):
+        environment_thread = None
+
+        try:
+            environment = Environment.create(platform)
+            if configuration:
+                environment.configure(*environment.configuration.general.load_configuration(configuration), parameters=parameters)
+            pipe.send(ActionResponse(id, EnvironmentState.CREATED.name, True, f"Environment successfully created.", environment.configuration.general.save_configuration(2)))
+        except Exception as e:
+            if configuration:
+                message = f"Failed to create and configure the environment. Reason: {e}"
+            else:
+                message = f"Failed to create the environment. Reason: {e}"
+            pipe.send(ActionResponse(id, EnvironmentState.TERMINATED.name, False, message))
+            return
+
+
+        while True:
+            if not pipe.poll(1):  # Avoid blocking indefinitely
+                continue
+            terminate = False
+            try:
+                action: EnvironmentAction | None = None
+                param: Any = None
+                response = None
+
+                action, param = pipe.recv()
+
+                match action:
+                    case EnvironmentAction.INIT:
+                        e = environment.control.init()
+                        response = ActionResponse(id, environment.control.state.name, e[0], "The environment was successfully initialized" if e[0] else "Failed to initialize the environment.")
+                    case EnvironmentAction.CONFIGURE:
+                        try:
+                            environment.configure(*environment.configuration.general.load_configuration(self.configuration), parameters=param)
+                            response = ActionResponse(id, environment.control.state.name, True, "The environment was successfully configured.")
+                        except Exception as e:
+                            print(e)
+                            response = ActionResponse(id, EnvironmentState.TERMINATED.name, False, "Failed to configure the environment.")
+                    case EnvironmentAction.RUN:
+                        # To make our life easier, we do a manual check if the thread is in init or paused state
+                        if environment.control.state == EnvironmentState.INIT or environment.control.state == EnvironmentState.PAUSED:
+                            environment_thread = Thread(target=environment.control.run)
+                            environment_thread.start()
+
+                            # give it a time to start (it should be fairly fast)
+                            counter = 0
+                            while counter < 10:
+                                if environment.control.state == EnvironmentState.INIT or environment.control.state == EnvironmentState.PAUSED:
+                                    time.sleep(0.2)
+                                else:
+                                    break
+
+                            if environment.control.state == EnvironmentState.RUNNING:
+                                response = ActionResponse(id, EnvironmentState.RUNNING.name, True, "The environment is running.")
+                            else:
+                                response = ActionResponse(id, environment.control.state.name, False, "Failed to run the environment.")
+                        else:
+                            response = ActionResponse(id, environment.control.state.name, False, "The environment is not in the state suitable for running.")
+                    case EnvironmentAction.RESET:
+                        e = environment.control.reset()
+                        if e[0]:
+                            response = ActionResponse(id, environment.control.state.name, True, "The environment was successfully reset.")
+                        else:
+                            response = ActionResponse(id, environment.control.state.name, False, "Failed to reset the environment.")
+                    case EnvironmentAction.COMMIT:
+                        if environment.control.state != EnvironmentState.FINISHED or environment.control.state != EnvironmentState.TERMINATED:
+                            response = ActionResponse(id, environment.control.state.name, False, "The environment is not in a suitable state for commit.")
+                        else:
+                            environment.control.commit()
+                            response = ActionResponse(id, environment.control.state.name, True, "The environment data was successfully committed.")
+                    case EnvironmentAction.PAUSE:
+                        e = environment.control.pause()
+                        if e[0]:
+                            response = ActionResponse(id, environment.control.state.name, True, "The environment was successfully paused.")
+                        else:
+                            if environment.control.state != EnvironmentState.RUNNING:
+                                response = ActionResponse(id, environment.control.state.name, False, "Failed to pause the environment, it is not in the running state.")
+                            else:
+                                response = ActionResponse(id, environment.control.state.name, False, "Failed to pause the environment.")
+                    case EnvironmentAction.TERMINATE:
+                        if environment_thread:
+                            environment.control.terminate()
+                            # Environment has issues when terminating without running, so we just do our stuff and die
+                            environment_thread.join()
+
+                        response = ActionResponse(id, environment.control.state.name, True, "The environment was successfully terminated.")
+                        terminate = True
+                    case EnvironmentAction.GET_STATE:
+                        response = ActionResponse(id, environment.control.state.name, True, "")
+
+                pipe.send(response)
+                if not response or terminate:
+                    break
+
+            except (KeyboardInterrupt, InterruptedError):
+                pass
+
+            except BrokenPipeError:
+                environment.control.terminate()
                 break
 
 

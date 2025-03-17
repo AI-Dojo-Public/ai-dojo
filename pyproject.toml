@@ -16,12 +16,13 @@ priority = "explicit"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-cyst-core = { version = "*", source = "dojo" }
-cyst-models-dojo-cryton = { version = "*", source = "dojo" }
-cyst-platforms-docker-cryton = { version = "*", source = "dojo" }
-uvicorn = "^0.23.0"
+cyst-core = { path = "./cyst-core/", develop = true }
+cyst-models-dojo-cryton = { path = "./cyst-models-dojo-cryton/", develop = true }
+cyst-platforms-docker-cryton = { path = "./cyst-platform-docker-cryton/", develop = true }
+cyst-agents-netsecenv = { path = "./cyst-agent-netsecenv/", develop = true }
+uvicorn = "^0.34.0"
 fastapi = {extras = ["all"], version = "^0.104.0"}
-httpx = "^0.26.0"
+httpx = "^0.28.0"
 
 [tool.poetry.group.dev.dependencies]
 black = {extras = ["d"], version = "^23.3.0"}

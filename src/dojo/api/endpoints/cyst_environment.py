@@ -1,9 +1,21 @@
+import asyncio
+import base64
+import json
+import socket
+from typing import Any
+
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
+from pathlib import Path
 
-from dojo.schemas.environment import Environment
-from dojo.controller import environments, EnvironmentWrapper, EnvironmentAction
+from dataclasses import asdict
+from dojo.schemas.environment import Environment, EnvironmentOut, Parametrization
+from dojo.schemas.configuration import ConfigurationJson, AvailableConfigurations
+from dojo.controller import environments, EnvironmentWrapper, EnvironmentAction, ActionResponse, EnvironmentState
+from dojo.lib import util
 
+
+async_lock = asyncio.Lock()
 
 router = APIRouter(
     prefix="/environment",
@@ -14,128 +26,160 @@ router = APIRouter(
 )
 
 
-def get_environment_wrapper(name: str) -> EnvironmentWrapper:
+def get_environment_wrapper(id: str) -> EnvironmentWrapper:
     try:
-        return environments[name]
+        return environments[id]
     except KeyError:
-        raise HTTPException(status_code=404, detail=f"Environment {name} not found")
+        raise HTTPException(status_code=404, detail=asdict(ActionResponse(id, EnvironmentState.TERMINATED.name, False, "The environment with the given id was not found.")))
 
 
 platform_type_description = """
 ## Platform types
-- **1 = simulation (default)**
-- **2 = emulation**
+- **1 = Simulated time**
+- **2 = Real time**
 """
 
 
 @router.post(
     "/create/",
     status_code=status.HTTP_201_CREATED,
-    responses={201: {"description": "Object successfully created"}},
     description=platform_type_description,
 )
-async def create(env: Environment):
-    if env.name in environments:
-        raise HTTPException(status_code=409, detail=f"Environment {env.name} already exists")
-    ew = EnvironmentWrapper(env.platform, env.name, env.configuration)
-    ew.start()
-    environments[env.name] = ew
+async def create(env: Environment) -> ActionResponse:
+    if env.id and env.id in environments:
+        raise HTTPException(status_code=409, detail=asdict(ActionResponse(env.id, "", False, f"Environment with id {env.id} already exists, cannot create a new one.")))
+
+    config_str = None
+    if env.configuration:
+        if len(env.configuration) < 256:
+            try:
+                json_configuration_path = util.ensure_json_configuration(env.configuration)
+            except RuntimeError as e:
+                raise HTTPException(status_code=409, detail=str(e))
+
+            with open(json_configuration_path, "r") as f:
+                config_str = f.read()
+        if not config_str:
+            config_str = base64.b64decode(env.configuration).decode("utf-8")
+
+    async with async_lock:
+        agent_env_port = await util.set_first_available_env_manager_port()
+
+    ew = EnvironmentWrapper(env.platform, env.id, config_str, env.parameters, agent_env_port)
+    response = await ew.start()
+    environments[str(ew.id)] = ew
+
+    return response
 
 
 @router.post(
     "/init/",
     status_code=status.HTTP_200_OK,
-    responses={200: {"description": "Environment initialized"}},
 )
-async def init(name):
-    await get_environment_wrapper(name).perform_action(EnvironmentAction.INIT)
+async def init(id) -> ActionResponse:
+    return await get_environment_wrapper(id).perform_action(EnvironmentAction.INIT)
 
 
 @router.post(
     "/configure/",
     status_code=status.HTTP_200_OK,
-    responses={200: {"description": "Environment configured"}},
 )
-async def configure(name: str):
-    await get_environment_wrapper(name).perform_action(EnvironmentAction.CONFIGURE)
+async def configure(id: str, parameters: Parametrization | None = None) -> ActionResponse:
+    return await get_environment_wrapper(id).perform_action(EnvironmentAction.CONFIGURE, parameters.parameters)
 
 
 @router.post(
     "/reset/",
     status_code=status.HTTP_200_OK,
-    responses={200: {"description": "Environment retested"}},
 )
-async def reset(name):
-    await get_environment_wrapper(name).perform_action(EnvironmentAction.RESET)
+async def reset(id) -> ActionResponse:
+    return await get_environment_wrapper(id).perform_action(EnvironmentAction.RESET)
 
 
 @router.post(
     "/terminate/",
     status_code=status.HTTP_200_OK,
-    responses={200: {"description": "Environment terminated"}},
 )
-async def terminate(name):
-    await get_environment_wrapper(name).perform_action(EnvironmentAction.TERMINATE)
-
-
-@router.post(
-    "/close/",
-    status_code=status.HTTP_200_OK,
-    responses={200: {"description": "Environment closed"}},
-)
-async def close(name):
-    await get_environment_wrapper(name).perform_action(None)
-    environments.pop(name)
+async def terminate(id) -> ActionResponse:
+    response = await get_environment_wrapper(id).perform_action(EnvironmentAction.TERMINATE)
+    if id in environments:
+        del environments[id]
+    return response
 
 
 @router.post(
     "/commit/",
     status_code=status.HTTP_200_OK,
-    responses={200: {"description": "Environment commited"}},
 )
-async def commit(name):
-    await get_environment_wrapper(name).perform_action(EnvironmentAction.COMMIT)
+async def commit(id) -> ActionResponse:
+    return await get_environment_wrapper(id).perform_action(EnvironmentAction.COMMIT)
 
 
 @router.post(
     "/pause/",
     status_code=status.HTTP_200_OK,
-    responses={200: {"description": "Environment paused"}},
 )
-async def pause(name):
-    await get_environment_wrapper(name).perform_action(EnvironmentAction.PAUSE)
+async def pause(id) -> ActionResponse:
+    return await get_environment_wrapper(id).perform_action(EnvironmentAction.PAUSE)
 
 
 @router.post(
     "/run/",
     status_code=status.HTTP_200_OK,
-    responses={200: {"description": "Environment running"}},
 )
-async def run(name):
-    await get_environment_wrapper(name).perform_action(EnvironmentAction.RUN)
+async def run(id: str) -> ActionResponse:
+    return await get_environment_wrapper(id).perform_action(EnvironmentAction.RUN)
 
 
 @router.get(
     "/list/",
     status_code=status.HTTP_200_OK,
-    responses={200: {"description": "Listed environments"}},
 )
-async def list_environments():
-    environments_info = dict()
+async def list_environments() -> list[EnvironmentOut]:
+    environments_info = []
     for env_name, env in environments.items():
-        environments_info[env_name] = {
-            "state": await env.perform_action(EnvironmentAction.GET_STATE),
-            "platform": env.platform.type.name,
-        }
-    return JSONResponse(content=environments_info)
+        environments_info.append(EnvironmentOut(
+            id=env_name,
+            state=(await env.perform_action(EnvironmentAction.GET_STATE)).state,
+            platform=env.platform.type.name,
+            provider=env.platform.provider,
+            agent_manager_port=env.agent_manager_port,
+        ))
+
+    return environments_info
 
 
 @router.get(
     "/get/",
     status_code=status.HTTP_200_OK,
-    responses={200: {"description": "Environment info"}},
 )
-async def get_environment(name):
-    env = get_environment_wrapper(name)
-    env_info = {"state": await env.perform_action(EnvironmentAction.GET_STATE), "platform": env.platform.type.name}
-    return JSONResponse(content=env_info)
+async def get_environment(id) -> EnvironmentOut:
+    env = get_environment_wrapper(id)
+    response = EnvironmentOut(
+        id=env.id,
+        state=(await env.perform_action(EnvironmentAction.GET_STATE)).state,
+        platform=env.platform.type.name,
+        provider=env.platform.provider,
+        agent_manager_port=env.agent_manager_port
+        )
+
+    return response
+
+@router.get(
+    "/configuration/list/",
+    status_code=status.HTTP_200_OK,
+)
+async def list_configurations() -> AvailableConfigurations:
+    return AvailableConfigurations(available_configurations=util.list_configuration_files())
+
+
+@router.get(
+    "/configuration/get/",
+    status_code=status.HTTP_200_OK,
+)
+async def get_configuration(file_name: str) -> ConfigurationJson:
+    try:
+        util.ensure_json_configuration(file_name)
+        return ConfigurationJson(configuration_json=util.read_configuration_file(file_name))
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))
