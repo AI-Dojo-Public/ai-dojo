@@ -1,0 +1,320 @@
+[
+  {
+    "py/object": "cyst.api.configuration.network.node.NodeConfig",
+    "active_services": [],
+    "passive_services": [
+      {
+        "py/object": "cyst.api.configuration.host.service.PassiveServiceConfig",
+        "name": "bash",
+        "owner": "root",
+        "version": {
+          "py/object": "cyst.api.configuration.configuration.ConfigParameter",
+          "py/newargs": {
+            "py/tuple": [
+              ""
+            ]
+          },
+          "id": "my-custom-version"
+        },
+        "local": true,
+        "access_level": {
+          "py/object": "cyst.api.configuration.configuration.ConfigParameter",
+          "py/newargs": {
+            "py/tuple": [
+              ""
+            ]
+          },
+          "id": "my-custom-access-level"
+        },
+        "authentication_providers": [],
+        "access_schemes": [],
+        "public_data": [],
+        "private_data": [],
+        "public_authorizations": [],
+        "private_authorizations": [],
+        "parameters": [],
+        "id": "",
+        "ref": "27ee57c9-a075-449f-939c-18383b2bd7b9"
+      },
+      {
+        "py/object": "cyst.api.configuration.host.service.PassiveServiceConfig",
+        "name": "lighttpd",
+        "owner": "www",
+        "version": "1.4.62",
+        "local": false,
+        "access_level": {
+          "py/object": "cyst.api.logic.access.AccessLevel",
+          "_value": "LIMITED"
+        },
+        "authentication_providers": [],
+        "access_schemes": [],
+        "public_data": [],
+        "private_data": [],
+        "public_authorizations": [],
+        "private_authorizations": [],
+        "parameters": [],
+        "id": "",
+        "ref": "63f459d7-c704-4499-9023-878fc38759f0"
+      }
+    ],
+    "traffic_processors": [],
+    "shell": "bash",
+    "interfaces": [],
+    "ref": "5e7bf60e-4038-464d-a68f-08c009a50608",
+    "name": "target",
+    "id": ""
+  },
+  {
+    "py/object": "cyst.api.configuration.host.service.ActiveServiceConfig",
+    "type": "netsecenv_agent",
+    "name": "attacker",
+    "owner": "attacker",
+    "access_level": {
+      "py/id": 15
+    },
+    "configuration": null,
+    "id": "",
+    "ref": "attacker_service_ref"
+  },
+  {
+    "py/object": "cyst.api.configuration.network.node.NodeConfig",
+    "active_services": [
+      {
+        "py/object": "cyst.api.configuration.configuration.ConfigParameter",
+        "py/newargs": {
+          "py/tuple": [
+            ""
+          ]
+        },
+        "id": "attacker_location_1"
+      }
+    ],
+    "passive_services": [],
+    "traffic_processors": [],
+    "shell": "",
+    "interfaces": [],
+    "ref": "0b637e9c-24f0-43f0-b846-1e712dc49ee2",
+    "name": "attacker_node_1",
+    "id": ""
+  },
+  {
+    "py/object": "cyst.api.configuration.network.node.NodeConfig",
+    "active_services": [
+      {
+        "py/object": "cyst.api.configuration.configuration.ConfigParameter",
+        "py/newargs": {
+          "py/tuple": [
+            ""
+          ]
+        },
+        "id": "attacker_location_2"
+      }
+    ],
+    "passive_services": [],
+    "traffic_processors": [],
+    "shell": "",
+    "interfaces": [],
+    "ref": "eaaf6ef7-1597-4b4a-9f0f-deb646c87bc0",
+    "name": "attacker_node_2",
+    "id": ""
+  },
+  {
+    "py/object": "cyst.api.configuration.network.router.RouterConfig",
+    "interfaces": [
+      {
+        "py/object": "cyst.api.configuration.network.elements.InterfaceConfig",
+        "ip": {
+          "py/object": "netaddr.ip.IPAddress",
+          "_value": "192.168.0.1"
+        },
+        "net": {
+          "py/object": "netaddr.ip.IPNetwork",
+          "_value": "192.168.0.1/24"
+        },
+        "index": 0,
+        "ref": "07557546-3167-4b1a-b864-e2e594f527c2",
+        "name": "__interface",
+        "id": ""
+      },
+      {
+        "py/object": "cyst.api.configuration.network.elements.InterfaceConfig",
+        "ip": {
+          "py/object": "netaddr.ip.IPAddress",
+          "_value": "192.168.0.1"
+        },
+        "net": {
+          "py/object": "netaddr.ip.IPNetwork",
+          "_value": "192.168.0.1/24"
+        },
+        "index": 1,
+        "ref": "8c707093-e95a-4e1e-b08b-ca9d15cc1316",
+        "name": "__interface",
+        "id": ""
+      },
+      {
+        "py/object": "cyst.api.configuration.network.elements.InterfaceConfig",
+        "ip": {
+          "py/object": "netaddr.ip.IPAddress",
+          "_value": "192.168.0.1"
+        },
+        "net": {
+          "py/object": "netaddr.ip.IPNetwork",
+          "_value": "192.168.0.1/24"
+        },
+        "index": 2,
+        "ref": "cd0de8a7-2214-442b-80b9-a87d07cb5153",
+        "name": "__interface",
+        "id": ""
+      }
+    ],
+    "traffic_processors": [
+      {
+        "py/object": "cyst.api.configuration.network.firewall.FirewallConfig",
+        "default_policy": {
+          "py/object": "cyst.api.network.firewall.FirewallPolicy",
+          "_value": "ALLOW"
+        },
+        "chains": [
+          {
+            "py/object": "cyst.api.configuration.network.firewall.FirewallChainConfig",
+            "type": {
+              "py/object": "cyst.api.network.firewall.FirewallChainType",
+              "_value": "FORWARD"
+            },
+            "policy": {
+              "py/id": 51
+            },
+            "rules": [],
+            "ref": "1a5f5fbb-f20e-4c62-b835-9199428a5cc3",
+            "name": "__firewall_chain",
+            "id": ""
+          }
+        ],
+        "ref": "34d87cf7-654d-4e7b-88e8-7b8cbc10034d",
+        "name": "__firewall",
+        "id": ""
+      }
+    ],
+    "routing_table": [],
+    "ref": "3dd5dec1-9b1b-476a-8fa5-a3c62ca7d499",
+    "name": "__router",
+    "id": "router"
+  },
+  {
+    "py/object": "cyst.api.configuration.logic.exploit.ExploitConfig",
+    "services": [
+      {
+        "py/object": "cyst.api.configuration.logic.exploit.VulnerableServiceConfig",
+        "service": "lighttpd",
+        "min_version": "1.3.11",
+        "max_version": "1.4.62",
+        "ref": "22ca095a-e706-4e7e-90ba-a5e78ad401ec",
+        "name": "__vulnerable_service",
+        "id": ""
+      }
+    ],
+    "locality": {
+      "py/object": "cyst.api.logic.exploit.ExploitLocality",
+      "_value": "REMOTE"
+    },
+    "category": {
+      "py/object": "cyst.api.logic.exploit.ExploitCategory",
+      "_value": "CODE_EXECUTION"
+    },
+    "parameters": null,
+    "ref": "b284a201-69d3-4be0-8f58-1c12c182d96d",
+    "name": "__exploit",
+    "id": "http_exploit"
+  },
+  {
+    "py/object": "cyst.api.configuration.network.elements.ConnectionConfig",
+    "src_ref": "5e7bf60e-4038-464d-a68f-08c009a50608",
+    "src_port": -1,
+    "dst_ref": "3dd5dec1-9b1b-476a-8fa5-a3c62ca7d499",
+    "dst_port": 0,
+    "ref": "25018313-ae09-4c68-8327-9fe594a31090",
+    "name": "__connection",
+    "id": ""
+  },
+  {
+    "py/object": "cyst.api.configuration.network.elements.ConnectionConfig",
+    "src_ref": "0b637e9c-24f0-43f0-b846-1e712dc49ee2",
+    "src_port": -1,
+    "dst_ref": "3dd5dec1-9b1b-476a-8fa5-a3c62ca7d499",
+    "dst_port": 1,
+    "ref": "b72d44f2-7616-4dc8-843f-af5c679e5ce0",
+    "name": "__connection",
+    "id": ""
+  },
+  {
+    "py/object": "cyst.api.configuration.network.elements.ConnectionConfig",
+    "src_ref": "eaaf6ef7-1597-4b4a-9f0f-deb646c87bc0",
+    "src_port": -1,
+    "dst_ref": "3dd5dec1-9b1b-476a-8fa5-a3c62ca7d499",
+    "dst_port": 2,
+    "ref": "049170c7-abf9-4d33-a821-88f3359eada8",
+    "name": "__connection",
+    "id": ""
+  },
+  {
+    "py/object": "cyst.api.configuration.configuration.ConfigParametrization",
+    "parameters": [
+      {
+        "py/object": "cyst.api.configuration.configuration.ConfigParameterSingle",
+        "name": "Vulnerable service version",
+        "value_type": {
+          "py/object": "cyst.api.configuration.configuration.ConfigParameterValueType",
+          "_value": "VALUE"
+        },
+        "description": "Sets the version of a vulnerable service. If you put version smaller than 1.3.11 and larger than 1.4.62, the exploit will not work.",
+        "default": "1.4.62",
+        "parameter_id": "my-custom-version"
+      },
+      {
+        "py/object": "cyst.api.configuration.configuration.ConfigParameterSingle",
+        "name": "Vulnerable access level",
+        "value_type": {
+          "py/id": 68
+        },
+        "description": "Sets the access level for the service",
+        "default": {
+          "py/id": 15
+        },
+        "parameter_id": "my-custom-access-level"
+      },
+      {
+        "py/object": "cyst.api.configuration.configuration.ConfigParameterGroup",
+        "parameter_id": "attacker-position",
+        "name": "Attacker position",
+        "group_type": {
+          "py/object": "cyst.api.configuration.configuration.ConfigParameterGroupType",
+          "_value": "ANY"
+        },
+        "value_type": {
+          "py/object": "cyst.api.configuration.configuration.ConfigParameterValueType",
+          "_value": "REF_COPY"
+        },
+        "description": "The node, where the attacker starts at.",
+        "default": [
+          "attacker_location_1",
+          "attacker_location_2"
+        ],
+        "options": [
+          {
+            "py/object": "cyst.api.configuration.configuration.ConfigParameterGroupEntry",
+            "description": "Node 1",
+            "value": "attacker_service_ref",
+            "parameter_id": "attacker_location_1"
+          },
+          {
+            "py/object": "cyst.api.configuration.configuration.ConfigParameterGroupEntry",
+            "description": "Node 2",
+            "value": "attacker_service_ref",
+            "parameter_id": "attacker_location_2"
+          }
+        ]
+      }
+    ],
+    "ref": "361980cd-a841-466e-865d-6fa9425a934d"
+  }
+]
