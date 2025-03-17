@@ -1,3 +1,5 @@
+import os
+import socket
 import uuid
 import time
 
@@ -34,11 +36,10 @@ class ActionResponse:
     message: str
     aux: Optional[str] = None
 
-
 class EnvironmentWrapper:
-    def __init__(self, platform: PlatformSpecification, id: str | None, configuration: str):
+    def __init__(self, platform: PlatformSpecification, id: str | None, configuration: str, agent_manager_port: int = 8282):
         if not id:
-            self._id = uuid.uuid4()
+            self._id = str(uuid.uuid4())
         else:
             self._id = id
 
@@ -49,6 +50,7 @@ class EnvironmentWrapper:
         self._pipe_parent, self._pipe_child = Pipe()
         self._process = Process(target=self.loop, args=(self._id, self._platform, self._configuration, self._pipe_child))
         self._lock = Lock()
+        self.agent_manager_port: int = agent_manager_port
 
     @property
     def id(self) -> str:
@@ -63,6 +65,7 @@ class EnvironmentWrapper:
         return self._configuration
 
     async def start(self) -> ActionResponse:
+        os.environ["CYST_AGENT_ENV_MANAGER_PORT"] = str(self.agent_manager_port)
         with self._lock:
             self._process.start()
             response: ActionResponse = await to_thread(self._pipe_parent.recv)
@@ -84,14 +87,11 @@ class EnvironmentWrapper:
             raise HTTPException(status_code=409, detail=asdict(response))
         return response
 
-    @staticmethod
-    def loop(id: str, platform: PlatformSpecification, configuration: str, pipe: connection.Connection):
+    def loop(self, id: str, platform: PlatformSpecification, configuration: str, pipe: connection.Connection):
         environment_thread = None
 
         try:
             environment = Environment.create(platform)
-            if configuration:
-                environment.configure(*environment.configuration.general.load_configuration(configuration))
             pipe.send(ActionResponse(id, EnvironmentState.CREATED.name, True, f"Environment successfully created.", environment.configuration.general.save_configuration(2)))
         except Exception as e:
             if configuration:
@@ -101,7 +101,10 @@ class EnvironmentWrapper:
             pipe.send(ActionResponse(id, EnvironmentState.TERMINATED.name, False, message))
             return
 
+
         while True:
+            if not pipe.poll(1):  # Avoid blocking indefinitely
+                continue
             terminate = False
             try:
                 action: EnvironmentAction | None = None
@@ -116,7 +119,7 @@ class EnvironmentWrapper:
                         response = ActionResponse(id, environment.control.state.name, e[0], "The environment was successfully initialized" if e[0] else "Failed to initialize the environment.")
                     case EnvironmentAction.CONFIGURE:
                         try:
-                            environment.configure(*environment.configuration.general.load_configuration(param))
+                            environment.configure(*environment.configuration.general.load_configuration(self.configuration), parameters=param)
                             response = ActionResponse(id, environment.control.state.name, True, "The environment was successfully configured.")
                         except Exception as e:
                             print(e)

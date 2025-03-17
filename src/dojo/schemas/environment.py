@@ -1,7 +1,5 @@
-import dataclasses
-import pydantic
 from pydantic import BaseModel, constr, Field
-from typing import Optional
+from typing import Optional, Any
 from cyst.api.environment.platform_specification import PlatformSpecification, PlatformType
 
 
@@ -9,9 +7,20 @@ from cyst.api.environment.platform_specification import PlatformSpecification, P
 # class Platform(PlatformSpecification):
 #     pass
 
+class Parametrization(BaseModel):
+    """ """
+    parameters: dict[str, Any]
 
 class Environment(BaseModel):
     """ """
     id: Optional[str] = None
     platform: PlatformSpecification = Field(default=PlatformSpecification(PlatformType.SIMULATED_TIME, "CYST"))
-    configuration: str
+    configuration: str = Field(default="configuration_1")
+
+class EnvironmentOut(BaseModel):
+    """ """
+    id: str
+    platform: str
+    provider: str
+    state: str
+    agent_manager_port: int
