@@ -12,7 +12,7 @@ from dataclasses import dataclass, asdict
 from fastapi import HTTPException
 from multiprocessing import Process, Pipe, connection, Lock
 from enum import StrEnum, auto
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 from threading import Thread
 from pathlib import Path
 
@@ -36,8 +36,9 @@ class ActionResponse:
     message: str
     aux: Optional[str] = None
 
+
 class EnvironmentWrapper:
-    def __init__(self, platform: PlatformSpecification, id: str | None, configuration: str, agent_manager_port: int = 8282):
+    def __init__(self, platform: PlatformSpecification, id: str | None, configuration: str, parameters: Optional[Dict[str, Any]], agent_manager_port: int = 8282):
         if not id:
             self._id = str(uuid.uuid4())
         else:
@@ -46,9 +47,10 @@ class EnvironmentWrapper:
         self._platform = platform
 
         self._configuration = configuration
+        self._parameters = parameters
 
         self._pipe_parent, self._pipe_child = Pipe()
-        self._process = Process(target=self.loop, args=(self._id, self._platform, self._configuration, self._pipe_child))
+        self._process = Process(target=self.loop, args=(self._id, self._platform, self._configuration, self._parameters, self._pipe_child))
         self._lock = Lock()
         self.agent_manager_port: int = agent_manager_port
 
@@ -87,11 +89,13 @@ class EnvironmentWrapper:
             raise HTTPException(status_code=409, detail=asdict(response))
         return response
 
-    def loop(self, id: str, platform: PlatformSpecification, configuration: str, pipe: connection.Connection):
+    def loop(self, id: str, platform: PlatformSpecification, configuration: str, parameters: Optional[Dict[str, Any]], pipe: connection.Connection):
         environment_thread = None
 
         try:
             environment = Environment.create(platform)
+            if configuration:
+                environment.configure(*environment.configuration.general.load_configuration(configuration), parameters=parameters)
             pipe.send(ActionResponse(id, EnvironmentState.CREATED.name, True, f"Environment successfully created.", environment.configuration.general.save_configuration(2)))
         except Exception as e:
             if configuration:
