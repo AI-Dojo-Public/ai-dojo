@@ -93,11 +93,11 @@ class EnvironmentWrapper:
             if configuration:
                 environment.configure(*environment.configuration.general.load_configuration(configuration))
             pipe.send(ActionResponse(id, EnvironmentState.CREATED.name, True, f"Environment successfully created.", environment.configuration.general.save_configuration(2)))
-        except:
+        except Exception as e:
             if configuration:
-                message = "Failed to create and configure the environment."
+                message = f"Failed to create and configure the environment. Reason: {e}"
             else:
-                message = "Failed to create the environment."
+                message = f"Failed to create the environment. Reason: {e}"
             pipe.send(ActionResponse(id, EnvironmentState.TERMINATED.name, False, message))
             return
 
