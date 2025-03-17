@@ -1,14 +1,21 @@
+import asyncio
 import base64
+import json
+import socket
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import JSONResponse
 from pathlib import Path
 
 from dataclasses import asdict
-from dojo.schemas.environment import Environment
-from dojo.schemas.configuration import Configuration
+from dojo.schemas.environment import Environment, EnvironmentOut, Parametrization
+from dojo.schemas.configuration import ConfigurationJson, AvailableConfigurations
 from dojo.controller import environments, EnvironmentWrapper, EnvironmentAction, ActionResponse, EnvironmentState
+from dojo.lib import util
 
+
+async_lock = asyncio.Lock()
 
 router = APIRouter(
     prefix="/environment",
@@ -17,8 +24,6 @@ router = APIRouter(
         404: {"description": "Not found"},
     },
 )
-
-max_concurrent_environments = 1
 
 
 def get_environment_wrapper(id: str) -> EnvironmentWrapper:
@@ -41,23 +46,22 @@ platform_type_description = """
     description=platform_type_description,
 )
 async def create(env: Environment) -> ActionResponse:
-    if len(environments) >= max_concurrent_environments:
-        raise HTTPException(status_code=409, detail=asdict(ActionResponse(env.id, "", False, f"At most {max_concurrent_environments} concurrent environments can be run at the same time.")))
-
     if env.id and env.id in environments:
         raise HTTPException(status_code=409, detail=asdict(ActionResponse(env.id, "", False, f"Environment with id {env.id} already exists, cannot create a new one.")))
 
     config_str = None
     if env.configuration:
         if len(env.configuration) < 256:
-            path = Path("src", "dojo", "configurations").joinpath(env.configuration + ".json")
-            if path.exists():
-                with open(path, "r") as f:
-                    config_str = f.read()
+            json_configuration_path = util.ensure_json_configuration(env.configuration)
+            with open(json_configuration_path, "r") as f:
+                config_str = f.read()
         if not config_str:
             config_str = base64.b64decode(env.configuration).decode("utf-8")
 
-    ew = EnvironmentWrapper(env.platform, env.id, config_str)
+    async with async_lock:
+        agent_env_port = await util.set_first_available_env_manager_port()
+
+    ew = EnvironmentWrapper(env.platform, env.id, config_str, agent_env_port)
     response = await ew.start()
     environments[str(ew.id)] = ew
 
@@ -76,17 +80,8 @@ async def init(id) -> ActionResponse:
     "/configure/",
     status_code=status.HTTP_200_OK,
 )
-async def configure(id: str, cfg: Configuration) -> ActionResponse:
-    config_str = None
-    if cfg.config:
-        if len(cfg.config) < 256:
-            path = Path("src", "dojo", "configurations").joinpath(cfg.config + ".json")
-            if path.exists():
-                with open(path, "r") as f:
-                    config_str = f.read()
-        if not config_str:
-            config_str = base64.b64decode(cfg.config).decode("utf-8")
-    return await get_environment_wrapper(id).perform_action(EnvironmentAction.CONFIGURE, config_str)
+async def configure(id: str, parameters: Parametrization | None) -> ActionResponse:
+    return await get_environment_wrapper(id).perform_action(EnvironmentAction.CONFIGURE, parameters.parameters)
 
 
 @router.post(
@@ -136,22 +131,51 @@ async def run(id: str) -> ActionResponse:
     "/list/",
     status_code=status.HTTP_200_OK,
 )
-async def list_environments() -> JSONResponse:
-    environments_info = dict()
+async def list_environments() -> list[EnvironmentOut]:
+    environments_info = []
     for env_name, env in environments.items():
-        environments_info[env_name] = {
-            "state": (await env.perform_action(EnvironmentAction.GET_STATE)).state,
-            "type": env.platform.type.name,
-            "provider": env.platform.provider
-        }
-    return JSONResponse(status_code=200, content=environments_info)
+        environments_info.append(EnvironmentOut(
+            id=env_name,
+            state=(await env.perform_action(EnvironmentAction.GET_STATE)).state,
+            platform=env.platform.type.name,
+            provider=env.platform.provider,
+            agent_manager_port=env.agent_manager_port,
+        ))
+
+    return environments_info
 
 
 @router.get(
     "/get/",
     status_code=status.HTTP_200_OK,
 )
-async def get_environment(id) -> JSONResponse:
+async def get_environment(id) -> EnvironmentOut:
     env = get_environment_wrapper(id)
-    env_info = {"state": (await env.perform_action(EnvironmentAction.GET_STATE)).state, "platform": env.platform.type.name}
-    return JSONResponse(content=env_info)
+    response = EnvironmentOut(
+        id=env.id,
+        state=(await env.perform_action(EnvironmentAction.GET_STATE)).state,
+        platform=env.platform.type.name,
+        provider=env.platform.provider,
+        agent_manager_port=env.agent_manager_port
+        )
+
+    return response
+
+@router.get(
+    "/configuration/list/",
+    status_code=status.HTTP_200_OK,
+)
+async def list_configurations() -> AvailableConfigurations:
+    return AvailableConfigurations(available_configurations=util.list_configuration_files())
+
+
+@router.get(
+    "/configuration/get/",
+    status_code=status.HTTP_200_OK,
+)
+async def get_configuration(file_name: str) -> ConfigurationJson:
+    try:
+        util.ensure_json_configuration(file_name)
+        return ConfigurationJson(configuration_json=util.read_configuration_file(file_name))
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=str(e))

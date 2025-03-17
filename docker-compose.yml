@@ -98,67 +98,67 @@ services:
     ports:
       - "127.0.0.1:8080:80"
 
-  dr-emu-db:
-    image: postgres:16
-    container_name: dr-emu-db
-    restart: always
-    networks:
-      - dr_emu_network
-    volumes:
-      - dr_emu_data:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_PASSWORD=dremu-password
-      - POSTGRES_USER=dremu-user
-      - POSTGRES_DB=dremudb
-    healthcheck:
-      test: /usr/bin/pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
-      interval: 20s
-      timeout: 10s
-      retries: 5
+#  dr-emu-db:
+#    image: postgres:16
+#    container_name: dr-emu-db
+#    restart: always
+#    networks:
+#      - dr_emu_network
+#    volumes:
+#      - dr_emu_data:/var/lib/postgresql/data
+#    environment:
+#      - POSTGRES_PASSWORD=dremu-password
+#      - POSTGRES_USER=dremu-user
+#      - POSTGRES_DB=dremudb
+#    healthcheck:
+#      test: /usr/bin/pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
+#      interval: 20s
+#      timeout: 10s
+#      retries: 5
 
-  dr-emu:
-    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dr-emu/dr-emu:latest
-    container_name: dr-emu
-    hostname: dr-emu
-    restart: always
-    networks:
-      - dr_emu_network
-    ports:
-      - "127.0.0.1:8005:8000"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - DEBUG=true
-      - POSTGRES_PASSWORD=dremu-password
-      - POSTGRES_USER=dremu-user
-      - POSTGRES_DB=dremudb
-      - DB_HOST=dr-emu-db
-      - APP_HOST=127.0.0.1
-      - APP_PORT=8000
-      - SSL=false
-      - REGISTRY_URL=placeholder
-      - DOCKER_USERNAME=demo
-      - DOCKER_TOKEN=token
-      - MANAGEMENT_NETWORK_NAME=cryton_network
-      - IGNORE_MANAGEMENT_NETWORK=false
-    depends_on:
-      dr-emu-db:
-        condition: service_healthy
+#  dr-emu:
+#    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dr-emu/dr-emu:latest
+#    container_name: dr-emu
+#    hostname: dr-emu
+#    restart: always
+#    networks:
+#      - dr_emu_network
+#    ports:
+#      - "127.0.0.1:8005:8000"
+#    volumes:
+#      - /var/run/docker.sock:/var/run/docker.sock
+#    environment:
+#      - DEBUG=true
+#      - POSTGRES_PASSWORD=dremu-password
+#      - POSTGRES_USER=dremu-user
+#      - POSTGRES_DB=dremudb
+#      - DB_HOST=dr-emu-db
+#      - APP_HOST=127.0.0.1
+#      - APP_PORT=8000
+#      - SSL=false
+#      - REGISTRY_URL=placeholder
+#      - DOCKER_USERNAME=demo
+#      - DOCKER_TOKEN=token
+#      - MANAGEMENT_NETWORK_NAME=cryton_network
+#      - IGNORE_MANAGEMENT_NETWORK=false
+#    depends_on:
+#      dr-emu-db:
+#        condition: service_healthy
 
-  dojo:
-    restart: always
-    container_name: dojo
-    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dojo/dojo
-    networks:
-      - dr_emu_network
-      - cryton_network
-    environment:
-      - DEBUG=true
-      - CYST_PLATFORM_DR_EMU_IP=dr-emu
-      - CYST_PLATFORM_CRYTON_PORT=80
-      - CYST_PLATFORM_CRYTON_IP=cryton-hive
-    ports:
-      - "127.0.0.1:8000:8000"
+#  dojo:
+#    restart: always
+#    container_name: dojo
+#    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dojo/dojo
+#    networks:
+#      - dr_emu_network
+#      - cryton_network
+#    environment:
+#      - DEBUG=true
+#      - CYST_PLATFORM_DR_EMU_IP=dr-emu
+#      - CYST_PLATFORM_CRYTON_PORT=80
+#      - CYST_PLATFORM_CRYTON_IP=cryton-hive
+#    ports:
+#      - "127.0.0.1:8000:8000"
 
 
 networks:
