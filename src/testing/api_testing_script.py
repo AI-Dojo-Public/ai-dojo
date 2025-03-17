@@ -6,11 +6,7 @@ import asyncio
 
 
 async def create(name: str, platform: dict):
-    from cyst_infra import all_config_items
-    import cyst.core.environment.serialization  # Register jsonpickle modifications
-
-    config = jsonpickle.encode(all_config_items, make_refs=False, indent=1)
-    data = {"name": name, "platform": platform, "configuration": config}
+    data = {"id": name, "platform": platform, "configuration": "demo"}
 
     print(f"Creating Environment: {name}")
     async with httpx.AsyncClient() as client:
@@ -20,6 +16,23 @@ async def create(name: str, platform: dict):
     else:
         print(f"Environment created successfully: {name}")
 
+async def execute_attack(port: int):
+    data = {
+        "action": "dojo:scan_network",
+        "params": {
+            "to_network": "192.168.0.2/28",
+            "dst_ip": "192.168.0.1",
+            "dst_service": ""
+        }
+    }
+
+    print("Executing attack...")
+    async with httpx.AsyncClient() as client:
+        response = await client.post(f"http://localhost:{port}/execute/attacker_node_2.attacker/", json=data)
+    if response.status_code != 200:
+        raise RuntimeError(f"message: {response.text}, code: {response.status_code}")
+    else:
+        print(response.text)
 
 async def configure(name: str):
     data = {"name": name}
@@ -34,7 +47,7 @@ async def configure(name: str):
 
 
 async def init(name: str):
-    data = {"name": name}
+    data = {"id": name}
 
     print(f"Initializing environment: {name}")
     async with httpx.AsyncClient() as client:
@@ -46,7 +59,7 @@ async def init(name: str):
 
 
 async def run(name: str):
-    data = {"name": name}
+    data = {"id": name}
 
     print(f"Starting environment: {name}")
     async with httpx.AsyncClient() as client:
@@ -94,8 +107,10 @@ async def close(env: str):
 
 async def create_envs():
     async with asyncio.TaskGroup() as tg:
-        # tg.create_task(create("env1", {"type": 1, "provider": "CYST"}))
-        tg.create_task(create("emu-env", {"type": 2, "provider": "docker+cryton"}))
+        tg.create_task(create("env3", {"type": 2, "provider": "docker+cryton"}))
+        # tg.create_task(create("env2", {"type": 1, "provider": "CYST"}))
+        # tg.create_task(create("env3", {"type": 1, "provider": "CYST"}))
+        # tg.create_task(create("emu-env", {"type": 2, "provider": "docker+cryton"}))
         # tg.create_task(create("emu-env2", {"type": 2, "provider": "docker+cryton"}))
 
 
@@ -109,18 +124,18 @@ async def terminate_env(env: str):
     await close(env)
 
 
-async def main():
+async def configure_env():
     await create_envs()
+
+async def main():
+    await configure_env()
     envs = json.loads(await list_envs())
 
-    for env in envs:
-        await configure(env)
+    async with asyncio.TaskGroup() as tg:
+        for env in envs:
+            tg.create_task(start_env(env))
 
-    # async with asyncio.TaskGroup() as tg:
-    #     for env in envs:
-    #         tg.create_task(start_env(env))
-    #
-    # await list_envs()
+    await list_envs()
 
     # async with asyncio.TaskGroup() as tg:
     #     for env in envs:
@@ -128,4 +143,5 @@ async def main():
     #
     # await list_envs()
 
+# asyncio.run(configure_env())
 asyncio.run(main())
