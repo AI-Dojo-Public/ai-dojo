@@ -52,7 +52,11 @@ async def create(env: Environment) -> ActionResponse:
     config_str = None
     if env.configuration:
         if len(env.configuration) < 256:
-            json_configuration_path = util.ensure_json_configuration(env.configuration)
+            try:
+                json_configuration_path = util.ensure_json_configuration(env.configuration)
+            except RuntimeError as e:
+                raise HTTPException(status_code=409, detail=str(e))
+
             with open(json_configuration_path, "r") as f:
                 config_str = f.read()
         if not config_str:
@@ -61,7 +65,7 @@ async def create(env: Environment) -> ActionResponse:
     async with async_lock:
         agent_env_port = await util.set_first_available_env_manager_port()
 
-    ew = EnvironmentWrapper(env.platform, env.id, config_str, agent_env_port)
+    ew = EnvironmentWrapper(env.platform, env.id, config_str, env.parameters, agent_env_port)
     response = await ew.start()
     environments[str(ew.id)] = ew
 
@@ -80,7 +84,7 @@ async def init(id) -> ActionResponse:
     "/configure/",
     status_code=status.HTTP_200_OK,
 )
-async def configure(id: str, parameters: Parametrization | None) -> ActionResponse:
+async def configure(id: str, parameters: Parametrization | None = None) -> ActionResponse:
     return await get_environment_wrapper(id).perform_action(EnvironmentAction.CONFIGURE, parameters.parameters)
 
 
