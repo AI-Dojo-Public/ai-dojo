@@ -6,5 +6,6 @@ from pydantic import BaseModel
 class AvailableConfigurations(BaseModel):
     available_configurations: list[str]
 
-class ConfigurationJson(BaseModel):
+class ScenarioOut(BaseModel):
     configuration_json: str
+    description: str
