@@ -43,14 +43,20 @@ def ensure_json_configuration(file_name):
         import_and_serialize_configs(file_name)
     return path
 
-def list_configuration_files() -> list[str]:
+def list_scenario_files() -> list[str]:
     return [f for f in os.listdir(constants.PATH_CONFIGURATIONS) if os.path.isdir(os.path.join(constants.PATH_CONFIGURATIONS, f))]
 
-
-def read_configuration_file(file_name: str) -> str:
+def read_scenario_file(file_name: str) -> str:
     path = constants.PATH_CONFIGURATIONS.joinpath(file_name, file_name + ".json")
     with open(path, 'r') as f:
         return f.read()
+
+def read_scenario_description(file_name: str) -> str:
+    path = constants.PATH_CONFIGURATIONS.joinpath(file_name, file_name + ".md")
+    if path.exists():
+        with open(path, 'r') as f:
+            return f.read()
+    return ""
 
 
 last_agent_env_port: int = 8282
