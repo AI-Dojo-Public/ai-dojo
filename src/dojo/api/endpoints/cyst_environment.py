@@ -10,7 +10,7 @@ from pathlib import Path
 
 from dataclasses import asdict
 from dojo.schemas.environment import Environment, EnvironmentOut, Parametrization
-from dojo.schemas.configuration import ConfigurationJson, AvailableConfigurations
+from dojo.schemas.configuration import ScenarioOut, AvailableConfigurations
 from dojo.controller import environments, EnvironmentWrapper, EnvironmentAction, ActionResponse, EnvironmentState
 from dojo.lib import util
 
@@ -84,7 +84,7 @@ async def init(id) -> ActionResponse:
     "/configure/",
     status_code=status.HTTP_200_OK,
 )
-async def configure(id: str, parameters: Parametrization | None = None) -> ActionResponse:
+async def configure(id: str, parameters: Parametrization) -> ActionResponse:
     return await get_environment_wrapper(id).perform_action(EnvironmentAction.CONFIGURE, parameters.parameters)
 
 
@@ -170,16 +170,16 @@ async def get_environment(id) -> EnvironmentOut:
     status_code=status.HTTP_200_OK,
 )
 async def list_configurations() -> AvailableConfigurations:
-    return AvailableConfigurations(available_configurations=util.list_configuration_files())
+    return AvailableConfigurations(available_configurations=util.list_scenario_files())
 
 
 @router.get(
     "/configuration/get/",
     status_code=status.HTTP_200_OK,
 )
-async def get_configuration(file_name: str) -> ConfigurationJson:
+async def get_configuration(file_name: str) -> ScenarioOut:
     try:
         util.ensure_json_configuration(file_name)
-        return ConfigurationJson(configuration_json=util.read_configuration_file(file_name))
+        return ScenarioOut(configuration_json=util.read_scenario_file(file_name))
     except Exception as e:
         raise HTTPException(status_code=404, detail=str(e))
