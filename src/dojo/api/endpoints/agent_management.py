@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 
 from dataclasses import dataclass
 from fastapi import APIRouter, HTTPException, status
@@ -98,7 +99,7 @@ async def add_agent(agent: AgentAddition) -> List[PackageEntry]:
             raise HTTPException(status_code=409, detail=f"Required path does not exist '{local_path}'.")
 
     # At this point, agent's code should reside somewhere on the disk
-    pip_command = ['pip', 'install']
+    pip_command = [sys.executable, '-m', 'pip', 'install']
     if agent.editable:
         pip_command.append('-e')
     pip_command.append(local_path)
