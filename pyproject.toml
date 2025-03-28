@@ -9,17 +9,12 @@ packages = [
     { include = "dojo", from = "src" },
 ]
 
-[[tool.poetry.source]]
-name = "dojo"
-url = "https://gitlab.ics.muni.cz/api/v4/projects/6977/packages/pypi/simple"
-priority = "explicit"
-
 [tool.poetry.dependencies]
 python = "^3.11"
-cyst-core = { path = "./cyst-core/", develop = true }
-cyst-models-dojo-cryton = { path = "./cyst-models-dojo-cryton/", develop = true }
-cyst-platforms-docker-cryton = { path = "./cyst-platform-docker-cryton/", develop = true }
-cyst-agents-netsecenv = { path = "./cyst-agent-netsecenv/", develop = true }
+cyst-core = { git = "https://gitlab.com/ai-dojo-public/cyst-core.git", branch = "master" }
+cyst-models-dojo-cryton = { git = "https://gitlab.com/ai-dojo-public/cyst-models-dojo-cryton.git", branch = "master" }
+cyst-platforms-docker-cryton = { git = "https://gitlab.com/ai-dojo-public/cyst-platform-docker-cryton.git", branch = "master" }
+cyst-agents-netsecenv = { git = "https://gitlab.com/ai-dojo-public/cyst-agents-netsecenv.git", branch = "master" }
 uvicorn = "^0.34.0"
 fastapi = {extras = ["all"], version = "^0.104.0"}
 httpx = "^0.28.0"
