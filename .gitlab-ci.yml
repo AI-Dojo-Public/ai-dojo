@@ -3,60 +3,24 @@ default:
   artifacts:
     expire_in: 30 days
 
-variables:
-  DOCKER_TLS_CERTDIR: "/certs"
-
 stages:
-  - test
   - build
 
-.tests:
-  stage: test
-  image: ubuntu:latest
-  coverage: '/TOTAL.*\s+(\d+%)$/'
-  rules:
-    - changes:
-        - src/**/*
-        - .gitlab-ci.yml
-        - poetry.lock
-        - pyproject.toml
-    - when: never
-  before_script:
-    - export $(grep -v '^#' .env | xargs)
-    - apt-get update
-    - apt-get install -y build-essential curl python3-dev g++ gcc git
-    - apt install -y pipx
-    - pipx ensurepath
-    - pipx install poetry
-    - pipx ensurepath
-    - export PATH="/root/.local/bin:$PATH"
-    - poetry install --no-interaction --no-ansi --all-extras
-    - poetry run pip install --upgrade setuptools
-
-#unit_tests:
-#  extends: .tests
-#  script:
-#    - poetry run pytest tests/unit/
-#
-#integration_tests:
-#  extends: .tests
-#  rules:
-#    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
-#  script:
-#    - poetry run pytest tests/integration/
-
-build_docker_image_dojo:
+build_docker_image:
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [ "" ]
   stage: build
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true"
+    - if: $CI_COMMIT_TAG =~ /^[0-9]+\.[0-9]+\.([0-9]|[0-z])+$/
+  before_script:
+    - if [ -n "$CI_COMMIT_TAG" ]; then export DOCKER_TAG=$CI_COMMIT_TAG; else export DOCKER_TAG=$CI_COMMIT_SHA; fi
   script:
     - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"username\":\"${CI_REGISTRY_USER}\",\"password\":\"${CI_REGISTRY_PASSWORD}\"}}}" > /kaniko/.docker/config.json
     - /kaniko/executor
       --context $CI_PROJECT_DIR
-      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --target production
       --skip-unused-stages
-      --destination $CI_REGISTRY_IMAGE/dojo:$CI_COMMIT_SHA
+      --destination $CI_REGISTRY_IMAGE/dojo:$DOCKER_TAG
       --destination $CI_REGISTRY_IMAGE/dojo:latest
