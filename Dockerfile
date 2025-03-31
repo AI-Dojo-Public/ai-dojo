@@ -20,4 +20,5 @@ WORKDIR /app
 
 COPY --from=base /app /app
 
-ENTRYPOINT ["/app/.venv/bin/uvicorn", "dojo.app:app", "--reload", "--host", "0.0.0.0"]
+ENTRYPOINT [ "/app/entrypoint.sh" ]
+CMD [ "/app/.venv/bin/uvicorn", "dojo.app:app", "--reload", "--host", "0.0.0.0" ]
