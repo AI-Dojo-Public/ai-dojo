@@ -32,7 +32,7 @@ class PackageEntry:
     git_repo: bool
 
 
-@router.get("/list", status_code=status.HTTP_201_CREATED)
+@router.get("/list", status_code=status.HTTP_200_OK)
 async def list_agents() -> List[PackageEntry]:
     result = []
     entry_points = importlib.metadata.entry_points(group='cyst.services')
@@ -131,11 +131,11 @@ async def add_agent(agent: AgentAddition) -> List[PackageEntry]:
     return result
 
 
-@router.post("/remove", status_code=status.HTTP_201_CREATED)
+@router.post("/remove", status_code=status.HTTP_200_OK)
 async def remove_agent(remove: AgentRemoval) -> Dict:
     result = {}
     by_package = {}
-    module_to_remove = ""
+    module_to_remove = None
 
     agents = await list_agents()
 
@@ -143,8 +143,7 @@ async def remove_agent(remove: AgentRemoval) -> Dict:
     for agent in agents:
         if not agent.package_name in by_package:
             by_package[agent.package_name] = []
-
-        if agent.module_name == remove.name:
+        if agent.package_name == remove.name:
             module_to_remove = agent
 
         by_package[agent.package_name].append(agent.module_name)
@@ -160,7 +159,7 @@ async def remove_agent(remove: AgentRemoval) -> Dict:
         return {"success": False, "reason": f"Code deletion requires forcing."}
 
     # Remove pip entry
-    pip_command = ['pip', 'uninstall', '-y', module_to_remove.package_name]
+    pip_command = [sys.executable, '-m', 'pip', 'uninstall', '-y', module_to_remove.package_name]
     pip_info = subprocess.run(pip_command, capture_output=True, text=True)
     if pip_info.returncode != 0:
         raise HTTPException(status_code=409, detail=f"Failed to uninstall the required agent. Reason: '{pip_info.stderr}'.")
