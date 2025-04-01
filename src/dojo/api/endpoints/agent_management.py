@@ -7,12 +7,10 @@ import sys
 
 from dataclasses import dataclass
 from fastapi import APIRouter, HTTPException, status
-from typing import List, Dict
 from urllib.request import url2pathname
 from urllib.parse import urlparse, urlunparse
 
-from dojo.schemas.agents import AgentAddition, AgentRemoval
-
+from dojo.schemas.agents import AgentAddition, AgentRemoval, AgentMethod
 
 router = APIRouter(
     prefix="/agents",
@@ -27,19 +25,17 @@ class PackageEntry:
     module_name: str
     package_name: str
     package_version: str
-    editable: bool
     code_path: str
     git_repo: bool
 
 
 @router.get("/list", status_code=status.HTTP_200_OK)
-async def list_agents() -> List[PackageEntry]:
+async def list_agents() -> list[PackageEntry]:
     result = []
     entry_points = importlib.metadata.entry_points(group='cyst.services')
     for entry_point in entry_points:
         module_name = entry_point.name
         module_package = entry_point.dist
-        editable = False
         code_path = ""
 
         # pip, poetry does not work
@@ -47,7 +43,6 @@ async def list_agents() -> List[PackageEntry]:
             for f in module_package.files:
                 if f.match("*direct_url.json"):
                     j = json.loads(f.read_text())
-                    editable = j.get("dir_info", {}).get("editable", False)
                     code_url = urlparse(j.get("url")).path
                     code_path = url2pathname(code_url)
                     break
@@ -59,56 +54,37 @@ async def list_agents() -> List[PackageEntry]:
         git_info = subprocess.run(['git', '-C', code_path, 'rev-parse'], capture_output=True, text=True)
         local_git_repo = git_info.returncode == 0
 
-        result.append(PackageEntry(module_name, module_package.name, version, editable, code_path, local_git_repo))
+        result.append(PackageEntry(module_name, module_package.name, version, code_path, local_git_repo))
 
     return result
 
 
 @router.post("/add", status_code=status.HTTP_201_CREATED)
-async def add_agent(agent: AgentAddition) -> List[PackageEntry]:
-    url_path = list(urlparse(agent.path))
+async def add_agent(agent: AgentAddition) -> list[PackageEntry]:
+    if agent.method == AgentMethod.GIT:
+        url_path = list(urlparse(agent.path))
 
-    # If the path is url and if it is, try to clone it
-    if url_path[1]:
         # If the credentials are not part of the url, attempt to add the provided ones
         if url_path[1].find("@") == -1:
             if agent.access_token:
                 if not agent.user:
                     agent.user = "__user"
-                url_path[1] = agent.user + ":" + agent.access_token + "@" + url_path[1]
+                url_path[1] = f"{agent.user}:{agent.access_token}@" + url_path[1]
 
-        if not os.path.exists("agents"):
-            try:
-                os.mkdir("agents")
-            except Exception as e:
-                raise HTTPException(status_code=409, detail=f"Failed to create a directory for agent addition. Reason: {str(e)}")
-
-        agent_path = os.path.basename(os.path.normpath(url_path[2]))
-
-        final_url = urlunparse(url_path)
-        git_info = subprocess.run(['git', 'clone', final_url, f"agents/{agent_path}"], capture_output=True, text=True)
-        if git_info.returncode != 0:
-            raise HTTPException(status_code=409, detail=f"Failed to clone the repository at address '{final_url}'. Reason: {git_info.stderr}")
-
-        # Rewrite the path to point to the local code
-        local_path = f"agents/{agent_path}"
-    # It's a local path
-    else:
-        local_path = url2pathname(urlunparse(url_path))
-        if not os.path.exists(local_path):
-            raise HTTPException(status_code=409, detail=f"Required path does not exist '{local_path}'.")
-
-    # At this point, agent's code should reside somewhere on the disk
-    pip_command = [sys.executable, '-m', 'pip', 'install']
-    if agent.editable:
-        pip_command.append('-e')
-    pip_command.append(local_path)
+        installable = f"git+{urlunparse(url_path)}"
+    else: # PYPI package name
+        installable = agent.path
 
     old_packages = await list_agents()
 
+    # Install the agent directly from the Git repository using pip
+    pip_command = [sys.executable, '-m', 'pip', 'install', installable]
     pip_info = subprocess.run(pip_command, capture_output=True, text=True)
+
+    # Check for any errors during the pip install process
     if pip_info.returncode != 0:
-        raise HTTPException(status_code=409, detail=f"Failed to install the required agent. Reason: '{pip_info.stderr}'.")
+        raise HTTPException(status_code=409,
+                            detail=f"Failed to install the package from '{final_url}'. Reason: {pip_info.stderr}")
 
     new_packages = await list_agents()
 
@@ -132,7 +108,7 @@ async def add_agent(agent: AgentAddition) -> List[PackageEntry]:
 
 
 @router.post("/remove", status_code=status.HTTP_200_OK)
-async def remove_agent(remove: AgentRemoval) -> Dict:
+async def remove_agent(remove: AgentRemoval) -> dict:
     result = {}
     by_package = {}
     module_to_remove = None

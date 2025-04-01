@@ -1,11 +1,16 @@
+from enum import Enum
+
 from pydantic import BaseModel, Field
 from typing import Optional
 
 
+class AgentMethod(Enum):
+    GIT = "git"
+    PYPI = "pypi"
+
 class AgentAddition(BaseModel):
+    method: AgentMethod
     path: str
-    local: Optional[bool] = Field(default=False)
-    editable: Optional[bool] = Field(default=False)
     user: Optional[str] = Field(default="")
     access_token: Optional[str] = Field(default="")
 
