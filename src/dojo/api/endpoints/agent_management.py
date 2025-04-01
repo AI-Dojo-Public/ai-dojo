@@ -84,7 +84,7 @@ async def add_agent(agent: AgentAddition) -> list[PackageEntry]:
     # Check for any errors during the pip install process
     if pip_info.returncode != 0:
         raise HTTPException(status_code=409,
-                            detail=f"Failed to install the package from '{final_url}'. Reason: {pip_info.stderr}")
+                            detail=f"Failed to install the package from '{installable}'. Reason: {pip_info.stderr}")
 
     new_packages = await list_agents()
 
