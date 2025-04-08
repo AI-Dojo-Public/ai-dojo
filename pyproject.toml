@@ -10,21 +10,28 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.11"
-cyst-core = { git = "https://gitlab.com/ai-dojo-public/cyst-core.git", branch = "master" }
-cyst-models-dojo-cryton = { git = "https://gitlab.com/ai-dojo-public/cyst-models-dojo-cryton.git", branch = "master" }
-cyst-platforms-docker-cryton = { git = "https://gitlab.com/ai-dojo-public/cyst-platform-docker-cryton.git", branch = "master" }
-cyst-agents-netsecenv = { git = "https://gitlab.com/ai-dojo-public/cyst-agents-netsecenv.git", branch = "master" }
-uvicorn = "^0.34.0"
-fastapi = {extras = ["all"], version = "^0.104.0"}
-httpx = "^0.28.0"
+python = ">3.11.0, <4.0.0"
+# Use CYST components' local paths and not remote git repositories if you also want to hack on them. Beware that you
+# will have to make this change in all other dependent projects that will be using the same dependency (this
+# typically happens with cyst-core).
+cyst-core = {git = "https://gitlab.com/ai-dojo-public/cyst-core.git", branch = "master" }
+# cyst-core = {path = "../cyst-core", develop = true}
+cyst-models-dojo-cryton = {git = "https://gitlab.com/ai-dojo-public/cyst-models-dojo-cryton.git", branch = "master" }
+# cyst-models-dojo-cryton = { path = "../cyst-models-dojo-cryton", develop=true }
+cyst-platform-docker-cryton = {git = "https://gitlab.com/ai-dojo-public/cyst-platform-docker-cryton.git", branch = "master" }
+# cyst-platform-docker-cryton = { path = "../cyst-platform-docker-cryton", develop=true }
+cyst-agents-netsecenv = {git = "https://gitlab.com/ai-dojo-public/cyst-agents-netsecenv.git", branch = "master" }
+#  cyst-agents-netsecenv = { path = "../cyst-agents-netsecenv", develop=true }
+uvicorn = ">=0.34.0"
+fastapi = {extras = ["all"], version = ">=0.104.0"}
+httpx = ">=0.28.0"
 
 [tool.poetry.group.dev.dependencies]
-black = {extras = ["d"], version = "^23.3.0"}
-pytest = "^7.4.2"
-pytest-asyncio = "^0.21.1"
-pytest-mock = "^3.11.1"
-aiosqlite = "^0.19.0"
+black = {extras = ["d"], version = ">=23.3.0"}
+pytest = ">=7.4.2"
+pytest-asyncio = ">=0.21.1"
+pytest-mock = ">=3.11.1"
+aiosqlite = ">=0.19.0"
 
 [build-system]
 requires = ["poetry-core"]
