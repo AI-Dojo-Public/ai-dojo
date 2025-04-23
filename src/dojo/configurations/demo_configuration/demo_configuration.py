@@ -60,7 +60,7 @@ auth_local_password = AuthenticationProviderConfig(
 # Node definitions
 # -----------------------------------------------------------------------------
 node_attacker = NodeConfig(
-    active_services=[ActiveServiceConfig("scripted_actor", "scripted_attacker", "attacker", AccessLevel.LIMITED)],
+    active_services=[ActiveServiceConfig("netsecenv_agent", "netsecenv_attacker", "attacker", AccessLevel.LIMITED)],
     passive_services=[
         # PassiveServiceConfig(
         #     type="empire", owner="empire", version="4.10.0", access_level=AccessLevel.LIMITED
@@ -489,7 +489,7 @@ nodes = [
 ]
 
 initial_session = SessionConfig(
-    src_service="scripted_attacker",
+    src_service="netsecenv_attacker",
     dst_service="python3",
     waypoints=["node_attacker", "perimeter_router", "node_client1"],
     reverse=True,

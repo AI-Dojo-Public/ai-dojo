@@ -1,6 +1,49 @@
 services:
+  dojo:
+    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dojo/dojo:latest
+    container_name: dojo
+    restart: always
+    ports:
+      - "127.0.0.1:8003:8000"
+    environment:
+      - DEBUG=true
+      - CYST_PLATFORM_DR_EMU_PORT=8002
+      - CYST_PLATFORM_CRYTON_PORT=8001
+      - CYST_PLATFORM_CRYTON_IP=127.0.0.1
+    depends_on:
+      dr-emu:
+        condition: service_started
+      cryton-api-proxy:
+        condition: service_started
+    volumes:
+      - dojo_venv:/app/.venvzs
+
+  dojo-frontend:
+    image: registry.gitlab.ics.muni.cz:443/ai-dojo/frontend/frontend:latest
+    container_name: dojo-frontend
+    restart: always
+    ports:
+      - "127.0.0.1:8000:80"
+    depends_on:
+      dojo:
+        condition: service_started
+
+# TODO: add kibana
+#      dojo-elk:
+#        condition: service_started
+#     Example of adding a package:
+#    volumes:
+#      - /path/to/package_name:/modules/package_name
+
+# TODO
+#  dojo-elk:
+#    image: ...
+#    restart: always
+#    ports:
+#      - "127.0.0.1:5601:5601"
+
   cryton-rabbit:
-    image: rabbitmq:3.12
+    image: rabbitmq:4.0-management
     container_name: cryton-rabbit
     restart: always
     networks:
@@ -20,7 +63,7 @@ services:
       retries: 5
 
   cryton-postgres:
-    image: postgres:16
+    image: postgres:17
     container_name: cryton-postgres
     restart: always
     networks:
@@ -39,7 +82,7 @@ services:
       retries: 5
 
   cryton-pgbouncer:
-    image: bitnami/pgbouncer:1.22.0
+    image: bitnami/pgbouncer:1.24.0
     container_name: cryton-pgbouncer
     restart: always
     networks:
@@ -58,9 +101,8 @@ services:
       - PGBOUNCER_POOL_MODE=transaction
 
   cryton-hive:
-    image: registry.gitlab.ics.muni.cz:443/cryton/cryton/hive:2
+    image: registry.gitlab.ics.muni.cz:443/cryton/cryton/hive:3
     container_name: cryton-hive
-    hostname: cryton-hive
     restart: always
     networks:
       - cryton_network
@@ -81,7 +123,7 @@ services:
         condition: service_healthy
 
   cryton-api-proxy:
-    image: registry.gitlab.ics.muni.cz:443/cryton/cryton/api-proxy:2
+    image: registry.gitlab.ics.muni.cz:443/cryton/cryton/api-proxy:3
     container_name: cryton-api-proxy
     restart: always
     network_mode: container:cryton-hive
@@ -90,7 +132,7 @@ services:
         condition: service_started
 
   cryton-frontend:
-    image: registry.gitlab.ics.muni.cz:443/cryton/cryton-frontend:latest
+    image: registry.gitlab.ics.muni.cz:443/cryton/cryton-frontend:3
     container_name: cryton-frontend
     restart: always
     networks:
@@ -98,68 +140,51 @@ services:
     ports:
       - "127.0.0.1:8080:80"
 
-#  dr-emu-db:
-#    image: postgres:16
-#    container_name: dr-emu-db
-#    restart: always
-#    networks:
-#      - dr_emu_network
-#    volumes:
-#      - dr_emu_data:/var/lib/postgresql/data
-#    environment:
-#      - POSTGRES_PASSWORD=dremu-password
-#      - POSTGRES_USER=dremu-user
-#      - POSTGRES_DB=dremudb
-#    healthcheck:
-#      test: /usr/bin/pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
-#      interval: 20s
-#      timeout: 10s
-#      retries: 5
+  dr-emu-db:
+    image: postgres:16
+    container_name: dr-emu-db
+    restart: always
+    networks:
+      - dr_emu_network
+    volumes:
+      - dr_emu_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=dremu-password
+      - POSTGRES_USER=dremu-user
+      - POSTGRES_DB=dremudb
+    healthcheck:
+      test: /usr/bin/pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB
+      interval: 20s
+      timeout: 10s
+      retries: 5
 
-#  dr-emu:
-#    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dr-emu/dr-emu:latest
-#    container_name: dr-emu
-#    hostname: dr-emu
-#    restart: always
-#    networks:
-#      - dr_emu_network
-#    ports:
-#      - "127.0.0.1:8005:8000"
-#    volumes:
-#      - /var/run/docker.sock:/var/run/docker.sock
-#    environment:
-#      - DEBUG=true
-#      - POSTGRES_PASSWORD=dremu-password
-#      - POSTGRES_USER=dremu-user
-#      - POSTGRES_DB=dremudb
-#      - DB_HOST=dr-emu-db
-#      - APP_HOST=127.0.0.1
-#      - APP_PORT=8000
-#      - SSL=false
-#      - REGISTRY_URL=placeholder
-#      - DOCKER_USERNAME=demo
-#      - DOCKER_TOKEN=token
-#      - MANAGEMENT_NETWORK_NAME=cryton_network
-#      - IGNORE_MANAGEMENT_NETWORK=false
-#    depends_on:
-#      dr-emu-db:
-#        condition: service_healthy
-
-#  dojo:
-#    restart: always
-#    container_name: dojo
-#    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dojo/dojo
-#    networks:
-#      - dr_emu_network
-#      - cryton_network
-#    environment:
-#      - DEBUG=true
-#      - CYST_PLATFORM_DR_EMU_IP=dr-emu
-#      - CYST_PLATFORM_CRYTON_PORT=80
-#      - CYST_PLATFORM_CRYTON_IP=cryton-hive
-#    ports:
-#      - "127.0.0.1:8000:8000"
-
+  dr-emu:
+    image: registry.gitlab.ics.muni.cz:443/ai-dojo/dr-emu/dr-emu:latest
+    container_name: dr-emu
+    restart: always
+    networks:
+      - dr_emu_network
+    ports:
+      - "127.0.0.1:8002:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DEBUG=true
+      - POSTGRES_PASSWORD=dremu-password
+      - POSTGRES_USER=dremu-user
+      - POSTGRES_DB=dremudb
+      - DB_HOST=dr-emu-db
+      - APP_HOST=127.0.0.1
+      - APP_PORT=8000
+      - SSL=false
+      - REGISTRY_URL=placeholder
+      - DOCKER_USERNAME=demo
+      - DOCKER_TOKEN=token
+      - MANAGEMENT_NETWORK_NAME=cryton_network
+      - IGNORE_MANAGEMENT_NETWORK=false
+    depends_on:
+      dr-emu-db:
+        condition: service_healthy
 
 networks:
   cryton_network:
@@ -169,3 +194,4 @@ networks:
 volumes:
   cryton_db_data:
   dr_emu_data:
+  dojo_venv:

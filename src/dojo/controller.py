@@ -126,7 +126,6 @@ class EnvironmentWrapper:
                             environment.configure(*environment.configuration.general.load_configuration(self.configuration), parameters=param)
                             response = ActionResponse(id, environment.control.state.name, True, "The environment was successfully configured.")
                         except Exception as e:
-                            print(e)
                             response = ActionResponse(id, EnvironmentState.TERMINATED.name, False, "Failed to configure the environment.")
                     case EnvironmentAction.RUN:
                         # To make our life easier, we do a manual check if the thread is in init or paused state
@@ -136,7 +135,7 @@ class EnvironmentWrapper:
 
                             # give it a time to start (it should be fairly fast)
                             counter = 0
-                            while counter < 10:
+                            while counter < 20:
                                 if environment.control.state == EnvironmentState.INIT or environment.control.state == EnvironmentState.PAUSED:
                                     time.sleep(0.2)
                                 else:
@@ -170,8 +169,8 @@ class EnvironmentWrapper:
                             else:
                                 response = ActionResponse(id, environment.control.state.name, False, "Failed to pause the environment.")
                     case EnvironmentAction.TERMINATE:
+                        environment.control.terminate()
                         if environment_thread:
-                            environment.control.terminate()
                             # Environment has issues when terminating without running, so we just do our stuff and die
                             environment_thread.join()
 
