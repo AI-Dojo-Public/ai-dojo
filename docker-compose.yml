@@ -7,16 +7,20 @@ services:
       - "127.0.0.1:8003:8000"
     environment:
       - DEBUG=true
-      - CYST_PLATFORM_DR_EMU_PORT=8002
-      - CYST_PLATFORM_CRYTON_PORT=8001
-      - CYST_PLATFORM_CRYTON_IP=127.0.0.1
+      - CYST_PLATFORM_DR_EMU_PORT=8000
+      - CYST_PLATFORM_DR_EMU_IP=dr-emu
+      - CYST_PLATFORM_CRYTON_PORT=80
+      - CYST_PLATFORM_CRYTON_IP=cryton-hive
+    networks:
+      - dr_emu_network
+      - cryton_network
     depends_on:
       dr-emu:
         condition: service_started
       cryton-api-proxy:
         condition: service_started
     volumes:
-      - dojo_venv:/app/.venvzs
+      - dojo_venv:/app/.venv
 
   dojo-frontend:
     image: registry.gitlab.ics.muni.cz:443/ai-dojo/frontend/frontend:latest
